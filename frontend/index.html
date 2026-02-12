@@ -72,6 +72,7 @@
         font-size: 12px;
       }
       .muted { color: #6b7280; font-size: 12px; }
+      .hint { margin-top: 6px; }
       @media (max-width: 800px) {
         .grid { grid-template-columns: 1fr; }
       }
@@ -114,6 +115,16 @@
       </div>
 
       <div class="card">
+        <h2>Backend API</h2>
+        <label for="apiOrigin">API origin</label>
+        <input id="apiOrigin" placeholder="http://localhost:8080" />
+        <div class="row" style="margin-top: 8px">
+          <button id="saveApiOriginBtn">Save API Origin</button>
+        </div>
+        <p class="muted hint">Set this when frontend and API are on different domains. Saved in your browser.</p>
+      </div>
+
+      <div class="card">
         <h2>Generated Bookmarklet URL</h2>
         <textarea id="bookmarkletUrl" class="mono" readonly></textarea>
         <div class="row" style="margin-top: 8px">
@@ -125,8 +136,23 @@
 
     <script src="https://cdn.jsdelivr.net/npm/terser@5.31.3/dist/bundle.min.js"></script>
     <script>
-      const state = { items: [], activeId: null };
-      const API_ORIGIN = window.BOOKMARKLET_API_ORIGIN || 'http://localhost:8080';
+      const DEFAULT_API_ORIGIN = 'http://localhost:8080';
+      const SAVED_API_ORIGIN_KEY = 'bookmarklet_api_origin';
+      const state = { items: [], activeId: null, apiOrigin: DEFAULT_API_ORIGIN };
+
+      function normalizeApiOrigin(origin) {
+        return String(origin || '').trim().replace(/\/$/, '');
+      }
+
+      function resolveApiOrigin() {
+        const configuredOrigin = normalizeApiOrigin(window.BOOKMARKLET_API_ORIGIN);
+        const savedOrigin = normalizeApiOrigin(localStorage.getItem(SAVED_API_ORIGIN_KEY));
+        return configuredOrigin || savedOrigin || DEFAULT_API_ORIGIN;
+      }
+
+      function apiUrl(path) {
+        return `${state.apiOrigin}${path}`;
+      }
 
       const itemList = document.getElementById('itemList');
       const titleInput = document.getElementById('title');
@@ -136,6 +162,7 @@
       const formTitle = document.getElementById('formTitle');
       const deleteBtn = document.getElementById('deleteBtn');
       const urlBox = document.getElementById('bookmarkletUrl');
+      const apiOriginInput = document.getElementById('apiOrigin');
 
       function setStatus(msg, isError = false) {
         statusEl.textContent = msg;
@@ -177,7 +204,7 @@
       }
 
       async function loadItems() {
-        const res = await fetch(`${API_ORIGIN}/api/bookmarklets`);
+        const res = await fetch(apiUrl('/api/bookmarklets'));
         const data = await res.json();
         state.items = data.items;
         renderItems();
@@ -188,7 +215,7 @@
         if (!window.Terser || typeof window.Terser.minify !== 'function') {
           throw new Error('Terser failed to load from CDN');
         }
-        const res = await fetch(`${API_ORIGIN}/api/selector`);
+        const res = await fetch(apiUrl('/api/selector'));
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'failed to generate bookmarklet source');
         const minified = await window.Terser.minify(data.javascript_source, {
@@ -201,6 +228,15 @@
         urlBox.value = `javascript:${minified.code}`;
       }
 
+
+      function saveApiOrigin() {
+        const nextOrigin = normalizeApiOrigin(apiOriginInput.value);
+        if (!nextOrigin) throw new Error('API origin is required');
+        state.apiOrigin = nextOrigin;
+        localStorage.setItem(SAVED_API_ORIGIN_KEY, nextOrigin);
+        apiOriginInput.value = nextOrigin;
+      }
+
       async function saveItem() {
         const payload = {
           title: titleInput.value,
@@ -209,7 +245,7 @@
         };
 
         const isUpdate = Boolean(state.activeId);
-        const url = isUpdate ? `${API_ORIGIN}/api/bookmarklets/${state.activeId}` : `${API_ORIGIN}/api/bookmarklets`;
+        const url = isUpdate ? apiUrl(`/api/bookmarklets/${state.activeId}`) : apiUrl('/api/bookmarklets');
         const method = isUpdate ? 'PUT' : 'POST';
 
         const res = await fetch(url, {
@@ -229,7 +265,7 @@
         const ok = confirm('Delete this entry?');
         if (!ok) return;
 
-        const res = await fetch(`${API_ORIGIN}/api/bookmarklets/${state.activeId}`, { method: 'DELETE' });
+        const res = await fetch(apiUrl(`/api/bookmarklets/${state.activeId}`), { method: 'DELETE' });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'delete failed');
 
@@ -250,12 +286,25 @@
         try { await refreshBookmarkletUrl(); setStatus('Regenerated bookmarklet URL.'); }
         catch (e) { setStatus(e.message, true); }
       };
+      document.getElementById('saveApiOriginBtn').onclick = async () => {
+        try {
+          saveApiOrigin();
+          await loadItems();
+          await refreshBookmarkletUrl();
+          setStatus(`Using API origin: ${state.apiOrigin}`);
+        } catch (e) {
+          setStatus(e.message, true);
+        }
+      };
+
       document.getElementById('copyBtn').onclick = async () => {
         try { await navigator.clipboard.writeText(urlBox.value); setStatus('Copied URL to clipboard.'); }
         catch (e) { setStatus('Clipboard failed: ' + e.message, true); }
       };
 
       (async function init() {
+        state.apiOrigin = resolveApiOrigin();
+        apiOriginInput.value = state.apiOrigin;
         resetForm();
         try {
           await loadItems();

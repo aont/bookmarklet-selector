@@ -377,10 +377,14 @@ async def cors_middleware(request: web.Request, handler):
     else:
         response = await handler(request)
 
-    allowed_origin = request.app["frontend_origin"]
+    allowed_origins = request.app["allowed_origins"]
     request_origin = request.headers.get("Origin")
-    if request_origin == allowed_origin:
-        response.headers["Access-Control-Allow-Origin"] = allowed_origin
+    if "*" in allowed_origins:
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        response.headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,DELETE,OPTIONS"
+    elif request_origin in allowed_origins:
+        response.headers["Access-Control-Allow-Origin"] = request_origin
         response.headers["Vary"] = "Origin"
         response.headers["Access-Control-Allow-Headers"] = "Content-Type"
         response.headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,DELETE,OPTIONS"
@@ -463,7 +467,9 @@ async def api_options(_: web.Request) -> web.Response:
 
 def create_api_app(frontend_origin: str) -> web.Application:
     app = web.Application(middlewares=[cors_middleware])
-    app["frontend_origin"] = frontend_origin
+    app["allowed_origins"] = {
+        origin.strip() for origin in frontend_origin.split(",") if origin.strip()
+    } or {"http://localhost:8081"}
     app.router.add_route("OPTIONS", "/api/{tail:.*}", api_options)
     app.router.add_get("/api/bookmarklets", api_get_bookmarklets)
     app.router.add_post("/api/bookmarklets", api_create_bookmarklet)
