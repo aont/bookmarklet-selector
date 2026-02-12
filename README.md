@@ -14,7 +14,7 @@ python backend/app.py --api-port 8080 --frontend-port 8081 --frontend-origin htt
 ```
 
 - Database file defaults to repository root: `./bookmarklets.db`.
-- You can override it with `--db-path /path/to/bookmarklets.db` (or env `DB_PATH`).
+- You can override it with `--db-path /path/to/bookmarklets.db`.
 
 ## URLs
 - Frontend UI: `http://localhost:8081`

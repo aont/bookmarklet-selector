@@ -1,7 +1,6 @@
 import argparse
 import asyncio
 import json
-import os
 from pathlib import Path
 from typing import Any
 
@@ -532,28 +531,25 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run bookmarklet selector manager")
     parser.add_argument(
         "--db-path",
-        default=os.environ.get("DB_PATH", str(DEFAULT_DB_PATH)),
-        help=(
-            "SQLite database path "
-            "(default: env DB_PATH or repository-root bookmarklets.db)"
-        ),
+        default=str(DEFAULT_DB_PATH),
+        help="SQLite database path (default: repository-root bookmarklets.db)",
     )
     parser.add_argument(
         "--api-port",
         type=int,
-        default=int(os.environ.get("API_PORT", "8080")),
-        help="Port for API/bookmarklet server (default: env API_PORT or 8080)",
+        default=8080,
+        help="Port for API/bookmarklet server (default: 8080)",
     )
     parser.add_argument(
         "--frontend-port",
         type=int,
-        default=int(os.environ.get("FRONTEND_PORT", "8081")),
-        help="Port for frontend server (default: env FRONTEND_PORT or 8081)",
+        default=8081,
+        help="Port for frontend server (default: 8081)",
     )
     parser.add_argument(
         "--frontend-origin",
-        default=os.environ.get("FRONTEND_ORIGIN", "http://localhost:8081"),
-        help="Allowed frontend origin for CORS (default: env FRONTEND_ORIGIN or http://localhost:8081)",
+        default="http://localhost:8081",
+        help="Allowed frontend origin for CORS (default: http://localhost:8081)",
     )
     parser.add_argument(
         "--no-frontend",
@@ -564,7 +560,6 @@ if __name__ == "__main__":
 
     DB_PATH = Path(args.db_path).expanduser()
 
-    os.environ.setdefault("AIOHTTP_NO_EXTENSIONS", "1")
     asyncio.run(
         run_servers(
             args.api_port,
