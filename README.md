@@ -10,8 +10,11 @@ A small web app to manage bookmarklet entries and generate a final selector book
 ## Run
 ```bash
 pip install -r requirements.txt
-python app.py --api-port 8080 --frontend-port 8081 --frontend-origin http://localhost:8081
+python backend/app.py --api-port 8080 --frontend-port 8081 --frontend-origin http://localhost:8081
 ```
+
+- Database file defaults to repository root: `./bookmarklets.db`.
+- You can override it with `--db-path /path/to/bookmarklets.db` (or env `DB_PATH`).
 
 ## URLs
 - Frontend UI: `http://localhost:8081`
@@ -26,7 +29,7 @@ The two services are intentionally split so the frontend and bookmarklet API run
 - Backend CORS accepts one or more origins via `--frontend-origin` (comma-separated), for example:
 
 ```bash
-python app.py --frontend-origin http://localhost:8081,https://admin.example.com
+python backend/app.py --frontend-origin http://localhost:8081,https://admin.example.com
 ```
 
 - To allow all origins during development, pass `--frontend-origin '*'`.

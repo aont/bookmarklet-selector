@@ -8,9 +8,11 @@ from typing import Any
 import aiosqlite
 from aiohttp import web
 
-BASE_DIR = Path(__file__).parent
-DB_PATH = BASE_DIR / "bookmarklets.db"
-FRONTEND_DIR = BASE_DIR / "frontend"
+BASE_DIR = Path(__file__).resolve().parent
+REPO_ROOT = BASE_DIR.parent
+DEFAULT_DB_PATH = REPO_ROOT / "bookmarklets.db"
+DB_PATH = DEFAULT_DB_PATH
+FRONTEND_DIR = REPO_ROOT / "frontend"
 INDEX_PATH = FRONTEND_DIR / "index.html"
 
 DEFAULT_ITEMS = [
@@ -36,6 +38,7 @@ DEFAULT_ITEMS = [
 
 
 async def init_db() -> None:
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
             """
@@ -528,6 +531,14 @@ async def run_servers(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run bookmarklet selector manager")
     parser.add_argument(
+        "--db-path",
+        default=os.environ.get("DB_PATH", str(DEFAULT_DB_PATH)),
+        help=(
+            "SQLite database path "
+            "(default: env DB_PATH or repository-root bookmarklets.db)"
+        ),
+    )
+    parser.add_argument(
         "--api-port",
         type=int,
         default=int(os.environ.get("API_PORT", "8080")),
@@ -550,6 +561,8 @@ if __name__ == "__main__":
         help="Disable serving frontend files and run API server only",
     )
     args = parser.parse_args()
+
+    DB_PATH = Path(args.db_path).expanduser()
 
     os.environ.setdefault("AIOHTTP_NO_EXTENSIONS", "1")
     asyncio.run(
