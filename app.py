@@ -486,31 +486,43 @@ def create_frontend_app() -> web.Application:
     return app
 
 
-async def run_servers(api_port: int, frontend_port: int, frontend_origin: str) -> None:
+async def run_servers(
+    api_port: int,
+    frontend_port: int,
+    frontend_origin: str,
+    serve_frontend: bool,
+) -> None:
     await init_db()
 
     api_app = create_api_app(frontend_origin)
-    frontend_app = create_frontend_app()
 
     api_runner = web.AppRunner(api_app)
-    frontend_runner = web.AppRunner(frontend_app)
     await api_runner.setup()
-    await frontend_runner.setup()
 
     api_site = web.TCPSite(api_runner, host="0.0.0.0", port=api_port)
-    frontend_site = web.TCPSite(frontend_runner, host="0.0.0.0", port=frontend_port)
     await api_site.start()
-    await frontend_site.start()
+
+    frontend_runner = None
+    if serve_frontend:
+        frontend_app = create_frontend_app()
+        frontend_runner = web.AppRunner(frontend_app)
+        await frontend_runner.setup()
+        frontend_site = web.TCPSite(frontend_runner, host="0.0.0.0", port=frontend_port)
+        await frontend_site.start()
 
     print(f"API server running on http://localhost:{api_port}")
-    print(f"Frontend server running on http://localhost:{frontend_port}")
+    if serve_frontend:
+        print(f"Frontend server running on http://localhost:{frontend_port}")
+    else:
+        print("Frontend server disabled (--no-frontend)")
 
     try:
         while True:
             await asyncio.sleep(3600)
     finally:
         await api_runner.cleanup()
-        await frontend_runner.cleanup()
+        if frontend_runner is not None:
+            await frontend_runner.cleanup()
 
 
 if __name__ == "__main__":
@@ -532,7 +544,19 @@ if __name__ == "__main__":
         default=os.environ.get("FRONTEND_ORIGIN", "http://localhost:8081"),
         help="Allowed frontend origin for CORS (default: env FRONTEND_ORIGIN or http://localhost:8081)",
     )
+    parser.add_argument(
+        "--no-frontend",
+        action="store_true",
+        help="Disable serving frontend files and run API server only",
+    )
     args = parser.parse_args()
 
     os.environ.setdefault("AIOHTTP_NO_EXTENSIONS", "1")
-    asyncio.run(run_servers(args.api_port, args.frontend_port, args.frontend_origin))
+    asyncio.run(
+        run_servers(
+            args.api_port,
+            args.frontend_port,
+            args.frontend_origin,
+            serve_frontend=not args.no_frontend,
+        )
+    )
