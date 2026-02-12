@@ -1,7 +1,6 @@
-import asyncio
+import argparse
 import json
 import os
-import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -94,34 +93,12 @@ def build_selector_source(items: list[dict[str, Any]]) -> str:
     return f"""!(function(){{'use strict';var items=[{','.join(item_literals)}];var ROOT_ID='bookmarklet-selector';var old=document.getElementById(ROOT_ID);if(old)old.remove();var prevOverflow=document.documentElement.style.overflow;document.documentElement.style.overflow='hidden';var currentUrl=null;try{{currentUrl=new URL(location.href);}}catch(e){{}}function isMatch(item,urlObj){{if(!urlObj)return false;if(typeof item.match!=='function')return true;try{{return item.match(urlObj)===true;}}catch(e){{return false;}}}}var overlay=document.createElement('div');overlay.id=ROOT_ID;overlay.style.position='fixed';overlay.style.inset='0';overlay.style.zIndex='2147483647';overlay.style.background='rgba(0,0,0,0.25)';overlay.style.display='flex';overlay.style.alignItems='center';overlay.style.justifyContent='center';overlay.style.padding='16px';overlay.style.boxSizing='border-box';var panel=document.createElement('div');panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');panel.style.width='min(560px,100%)';panel.style.maxHeight='min(520px,100%)';panel.style.background='#fff';panel.style.color='#111';panel.style.border='1px solid #ddd';panel.style.borderRadius='10px';panel.style.boxShadow='0 10px 30px rgba(0,0,0,0.15)';panel.style.display='flex';panel.style.flexDirection='column';panel.style.overflow='hidden';panel.style.font='14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif';overlay.appendChild(panel);var header=document.createElement('div');header.style.display='flex';header.style.alignItems='center';header.style.justifyContent='space-between';header.style.padding='10px 12px';header.style.borderBottom='1px solid #eee';var hTitle=document.createElement('div');hTitle.textContent='Bookmarklets';hTitle.style.fontWeight='600';var closeBtn=document.createElement('button');closeBtn.type='button';closeBtn.textContent='×';closeBtn.setAttribute('aria-label','Close');closeBtn.style.width='32px';closeBtn.style.height='32px';closeBtn.style.border='1px solid #ddd';closeBtn.style.borderRadius='8px';closeBtn.style.background='#fff';closeBtn.style.cursor='pointer';closeBtn.style.fontSize='18px';closeBtn.style.lineHeight='1';closeBtn.style.color='#333';header.appendChild(hTitle);header.appendChild(closeBtn);panel.appendChild(header);var body=document.createElement('div');body.style.padding='12px';body.style.display='flex';body.style.flexDirection='column';body.style.gap='10px';panel.appendChild(body);var input=document.createElement('input');input.type='text';input.placeholder='Search...';input.style.width='100%';input.style.boxSizing='border-box';input.style.padding='10px';input.style.borderRadius='8px';input.style.border='1px solid #ddd';input.style.background='#fff';input.style.color='#111';input.style.outline='none';body.appendChild(input);var list=document.createElement('div');list.style.border='1px solid #ddd';list.style.borderRadius='8px';list.style.overflow='auto';list.style.maxHeight='320px';body.appendChild(list);var footer=document.createElement('div');footer.style.display='flex';footer.style.gap='8px';footer.style.padding='10px 12px';footer.style.borderTop='1px solid #eee';function btn(label,primary){{var b=document.createElement('button');b.type='button';b.textContent=label;b.style.flex='1';b.style.padding='10px';b.style.borderRadius='8px';b.style.border='1px solid #ddd';b.style.background=primary?'#111':'#fff';b.style.color=primary?'#fff':'#111';b.style.cursor='pointer';return b;}}var runBtn=btn('Run',true);var cancelBtn=btn('Cancel',false);footer.appendChild(runBtn);footer.appendChild(cancelBtn);panel.appendChild(footer);var filtered=[];var active=0;var optionEls=[];function rebuildFiltered(query){{var q=(query||'').toLowerCase();filtered=items.map(function(it,i){{return{{index:i,title:it.title}};}}).filter(function(x){{var item=items[x.index];return isMatch(item,currentUrl)&&x.title.toLowerCase().includes(q);}});active=0;}}function setActive(pos){{if(!filtered.length)return;active=Math.max(0,Math.min(pos,filtered.length-1));optionEls.forEach(function(el,i){{el.style.background=i===active?'#f3f4f6':'#fff';el.style.outline=i===active?'2px solid #111':'none';el.style.outlineOffset='-2px';}});var el=optionEls[active];if(el)el.scrollIntoView({{block:'nearest'}});}}function render(){{list.innerHTML='';optionEls=[];if(!filtered.length){{var empty=document.createElement('div');empty.textContent='No matching items';empty.style.padding='10px';empty.style.color='#666';list.appendChild(empty);return;}}filtered.forEach(function(item,pos){{var row=document.createElement('div');row.textContent=item.title;row.style.padding='10px';row.style.cursor='pointer';row.style.userSelect='none';row.style.borderBottom='1px solid #eee';row.onmouseenter=function(){{setActive(pos);}};row.onclick=function(){{setActive(pos);runSelected();}};list.appendChild(row);optionEls.push(row);}});var last=list.lastElementChild;if(last&&last.style)last.style.borderBottom='none';setActive(active);}}function cleanup(){{document.documentElement.style.overflow=prevOverflow;document.removeEventListener('keydown',onKey,true);overlay.remove();}}function runSelected(){{if(!filtered.length)return;var item=items[filtered[active].index];cleanup();try{{item.code.call(window);}}catch(e){{alert('Bookmarklet error: '+e.message);}}}}function onKey(e){{if(e.key==='Escape'){{e.preventDefault();cleanup();}}else if(e.key==='Enter'){{e.preventDefault();runSelected();}}else if(e.key==='ArrowDown'){{e.preventDefault();setActive(active+1);}}else if(e.key==='ArrowUp'){{e.preventDefault();setActive(active-1);}}}}input.oninput=function(){{rebuildFiltered(input.value);render();}};runBtn.onclick=runSelected;cancelBtn.onclick=cleanup;closeBtn.onclick=cleanup;document.addEventListener('keydown',onKey,true);rebuildFiltered('');render();document.documentElement.appendChild(overlay);input.focus();}})();"""
 
 
-def minify_with_terser(js_code: str) -> str:
-    terser_cmd = [
-        "node",
-        "-e",
-        (
-            "const terser=require('terser');"
-            "const fs=require('fs');"
-            "const src=fs.readFileSync(0,'utf8');"
-            "const options={compress:{booleans:true,dead_code:true,passes:2,unsafe:false},"
-            "mangle:false,ecma:5,format:{comments:false,semicolons:true}};"
-            "terser.minify(src,options).then(r=>{if(r.error){console.error(r.error);process.exit(1);}"
-            "process.stdout.write(r.code);}).catch(e=>{console.error(e);process.exit(1);});"
-        ),
-    ]
-    proc = subprocess.run(terser_cmd, input=js_code.encode("utf-8"), capture_output=True, check=False)
-    if proc.returncode != 0:
-        stderr = proc.stderr.decode("utf-8", errors="replace")
-        raise RuntimeError(f"Terser minify failed: {stderr}")
-    return proc.stdout.decode("utf-8")
-
-
 async def selector_payload() -> dict[str, str]:
     items = await list_items()
     source = build_selector_source(items)
-    minified = await asyncio.to_thread(minify_with_terser, source)
     return {
-        "javascript": minified,
-        "bookmarklet_url": f"javascript:{minified}",
+        "javascript_source": source,
+        "bookmarklet_url": f"javascript:{source}",
     }
 
 
@@ -212,5 +189,14 @@ async def create_app() -> web.Application:
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Run bookmarklet selector manager")
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=int(os.environ.get("PORT", "8080")),
+        help="Port to bind the HTTP server to (default: env PORT or 8080)",
+    )
+    args = parser.parse_args()
+
     os.environ.setdefault("AIOHTTP_NO_EXTENSIONS", "1")
-    web.run_app(create_app(), host="0.0.0.0", port=8080)
+    web.run_app(create_app(), host="0.0.0.0", port=args.port)

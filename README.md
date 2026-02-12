@@ -5,13 +5,12 @@ A small web app to manage bookmarklet entries and generate a final selector book
 ## Stack
 - Backend: Python, `aiohttp`, `aiosqlite`
 - Frontend: HTML + JavaScript
-- Minifier: `terser` (Node.js)
+- Minifier: `terser` loaded from CDN in the browser (no Node.js required)
 
 ## Run
 ```bash
 pip install -r requirements.txt
-npm install
-python app.py
+python app.py --port 8080
 ```
 
-Open `http://localhost:8080`.
+Open `http://localhost:8080` (or your chosen port).

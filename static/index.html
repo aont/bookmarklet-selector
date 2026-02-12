@@ -123,6 +123,7 @@
       </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/terser@5.31.3/dist/bundle.min.js"></script>
     <script>
       const state = { items: [], activeId: null };
 
@@ -183,10 +184,20 @@
       }
 
       async function refreshBookmarkletUrl() {
+        if (!window.Terser || typeof window.Terser.minify !== 'function') {
+          throw new Error('Terser failed to load from CDN');
+        }
         const res = await fetch('/api/selector');
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'failed to generate bookmarklet');
-        urlBox.value = data.bookmarklet_url;
+        if (!res.ok) throw new Error(data.error || 'failed to generate bookmarklet source');
+        const minified = await window.Terser.minify(data.javascript_source, {
+          compress: { booleans: true, dead_code: true, passes: 2, unsafe: false },
+          mangle: false,
+          ecma: 5,
+          format: { comments: false, semicolons: true },
+        });
+        if (!minified.code) throw new Error(minified.error?.message || 'minification failed');
+        urlBox.value = `javascript:${minified.code}`;
       }
 
       async function saveItem() {
