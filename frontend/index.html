@@ -126,6 +126,7 @@
     <script src="https://cdn.jsdelivr.net/npm/terser@5.31.3/dist/bundle.min.js"></script>
     <script>
       const state = { items: [], activeId: null };
+      const API_ORIGIN = window.BOOKMARKLET_API_ORIGIN || 'http://localhost:8080';
 
       const itemList = document.getElementById('itemList');
       const titleInput = document.getElementById('title');
@@ -176,7 +177,7 @@
       }
 
       async function loadItems() {
-        const res = await fetch('/api/bookmarklets');
+        const res = await fetch(`${API_ORIGIN}/api/bookmarklets`);
         const data = await res.json();
         state.items = data.items;
         renderItems();
@@ -187,7 +188,7 @@
         if (!window.Terser || typeof window.Terser.minify !== 'function') {
           throw new Error('Terser failed to load from CDN');
         }
-        const res = await fetch('/api/selector');
+        const res = await fetch(`${API_ORIGIN}/api/selector`);
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'failed to generate bookmarklet source');
         const minified = await window.Terser.minify(data.javascript_source, {
@@ -208,7 +209,7 @@
         };
 
         const isUpdate = Boolean(state.activeId);
-        const url = isUpdate ? `/api/bookmarklets/${state.activeId}` : '/api/bookmarklets';
+        const url = isUpdate ? `${API_ORIGIN}/api/bookmarklets/${state.activeId}` : `${API_ORIGIN}/api/bookmarklets`;
         const method = isUpdate ? 'PUT' : 'POST';
 
         const res = await fetch(url, {
@@ -228,7 +229,7 @@
         const ok = confirm('Delete this entry?');
         if (!ok) return;
 
-        const res = await fetch(`/api/bookmarklets/${state.activeId}`, { method: 'DELETE' });
+        const res = await fetch(`${API_ORIGIN}/api/bookmarklets/${state.activeId}`, { method: 'DELETE' });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'delete failed');
 
