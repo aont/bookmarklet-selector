@@ -1,0 +1,8 @@
+{
+  "name": "bookmarklet-selector",
+  "private": true,
+  "version": "1.0.0",
+  "dependencies": {
+    "terser": "5.37.0"
+  }
+}

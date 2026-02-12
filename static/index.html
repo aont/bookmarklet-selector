@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bookmarklet Selector Manager</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: #f4f6f8;
+        color: #1f2937;
+      }
+      .container {
+        max-width: 1000px;
+        margin: 24px auto;
+        padding: 0 16px;
+      }
+      .card {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        padding: 16px;
+        margin-bottom: 16px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+      label {
+        font-size: 13px;
+        font-weight: 600;
+        display: block;
+        margin-bottom: 6px;
+      }
+      input, textarea, button {
+        font: inherit;
+      }
+      input, textarea {
+        width: 100%;
+        box-sizing: border-box;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        padding: 10px;
+      }
+      textarea { min-height: 110px; }
+      button {
+        border: 1px solid #d1d5db;
+        background: #fff;
+        border-radius: 8px;
+        padding: 10px 12px;
+        cursor: pointer;
+      }
+      button.primary {
+        background: #111827;
+        color: #fff;
+        border-color: #111827;
+      }
+      .row { display: flex; gap: 8px; flex-wrap: wrap; }
+      .item-list { display: flex; flex-direction: column; gap: 8px; }
+      .item {
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 12px;
+      }
+      .muted { color: #6b7280; font-size: 12px; }
+      @media (max-width: 800px) {
+        .grid { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="card">
+        <h1>Bookmarklet Selector Manager</h1>
+        <p class="muted">Manage bookmarklet entries and generate a minified selector bookmarklet URL.</p>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <h2>Entries</h2>
+          <div id="itemList" class="item-list"></div>
+        </div>
+
+        <div class="card">
+          <h2 id="formTitle">New Entry</h2>
+          <div>
+            <label for="title">Title</label>
+            <input id="title" />
+          </div>
+          <div>
+            <label for="matchJs">match(url) function</label>
+            <textarea id="matchJs" class="mono"></textarea>
+          </div>
+          <div>
+            <label for="codeJs">code() function</label>
+            <textarea id="codeJs" class="mono"></textarea>
+          </div>
+          <div class="row">
+            <button class="primary" id="saveBtn">Save</button>
+            <button id="newBtn">New</button>
+            <button id="deleteBtn">Delete</button>
+          </div>
+          <p id="status" class="muted"></p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Generated Bookmarklet URL</h2>
+        <textarea id="bookmarkletUrl" class="mono" readonly></textarea>
+        <div class="row" style="margin-top: 8px">
+          <button id="copyBtn">Copy URL</button>
+          <button id="refreshBtn">Regenerate</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const state = { items: [], activeId: null };
+
+      const itemList = document.getElementById('itemList');
+      const titleInput = document.getElementById('title');
+      const matchInput = document.getElementById('matchJs');
+      const codeInput = document.getElementById('codeJs');
+      const statusEl = document.getElementById('status');
+      const formTitle = document.getElementById('formTitle');
+      const deleteBtn = document.getElementById('deleteBtn');
+      const urlBox = document.getElementById('bookmarkletUrl');
+
+      function setStatus(msg, isError = false) {
+        statusEl.textContent = msg;
+        statusEl.style.color = isError ? '#dc2626' : '#6b7280';
+      }
+
+      function resetForm() {
+        state.activeId = null;
+        formTitle.textContent = 'New Entry';
+        titleInput.value = '';
+        matchInput.value = "function (url) {\n  return true;\n}";
+        codeInput.value = "function () {\n  alert('hello');\n}";
+        deleteBtn.disabled = true;
+      }
+
+      function fillForm(item) {
+        state.activeId = item.id;
+        formTitle.textContent = `Edit Entry #${item.id}`;
+        titleInput.value = item.title;
+        matchInput.value = item.match_js;
+        codeInput.value = item.code_js;
+        deleteBtn.disabled = false;
+      }
+
+      function renderItems() {
+        itemList.innerHTML = '';
+        state.items.forEach((item) => {
+          const el = document.createElement('div');
+          el.className = 'item';
+          const left = document.createElement('div');
+          left.innerHTML = `<strong>${item.title}</strong><div class="muted">id: ${item.id}</div>`;
+          const edit = document.createElement('button');
+          edit.textContent = 'Edit';
+          edit.onclick = () => fillForm(item);
+          el.appendChild(left);
+          el.appendChild(edit);
+          itemList.appendChild(el);
+        });
+      }
+
+      async function loadItems() {
+        const res = await fetch('/api/bookmarklets');
+        const data = await res.json();
+        state.items = data.items;
+        renderItems();
+        if (!state.activeId) resetForm();
+      }
+
+      async function refreshBookmarkletUrl() {
+        const res = await fetch('/api/selector');
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'failed to generate bookmarklet');
+        urlBox.value = data.bookmarklet_url;
+      }
+
+      async function saveItem() {
+        const payload = {
+          title: titleInput.value,
+          match_js: matchInput.value,
+          code_js: codeInput.value,
+        };
+
+        const isUpdate = Boolean(state.activeId);
+        const url = isUpdate ? `/api/bookmarklets/${state.activeId}` : '/api/bookmarklets';
+        const method = isUpdate ? 'PUT' : 'POST';
+
+        const res = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'save failed');
+        setStatus(isUpdate ? 'Updated.' : `Created #${data.id}`);
+        await loadItems();
+        await refreshBookmarkletUrl();
+      }
+
+      async function deleteItem() {
+        if (!state.activeId) return;
+        const ok = confirm('Delete this entry?');
+        if (!ok) return;
+
+        const res = await fetch(`/api/bookmarklets/${state.activeId}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'delete failed');
+
+        setStatus('Deleted entry.');
+        await loadItems();
+        resetForm();
+        await refreshBookmarkletUrl();
+      }
+
+      document.getElementById('saveBtn').onclick = async () => {
+        try { await saveItem(); } catch (e) { setStatus(e.message, true); }
+      };
+      document.getElementById('newBtn').onclick = () => resetForm();
+      document.getElementById('deleteBtn').onclick = async () => {
+        try { await deleteItem(); } catch (e) { setStatus(e.message, true); }
+      };
+      document.getElementById('refreshBtn').onclick = async () => {
+        try { await refreshBookmarkletUrl(); setStatus('Regenerated bookmarklet URL.'); }
+        catch (e) { setStatus(e.message, true); }
+      };
+      document.getElementById('copyBtn').onclick = async () => {
+        try { await navigator.clipboard.writeText(urlBox.value); setStatus('Copied URL to clipboard.'); }
+        catch (e) { setStatus('Clipboard failed: ' + e.message, true); }
+      };
+
+      (async function init() {
+        resetForm();
+        try {
+          await loadItems();
+          await refreshBookmarkletUrl();
+          setStatus('Loaded.');
+        } catch (e) {
+          setStatus(e.message, true);
+        }
+      })();
+    </script>
+  </body>
+</html>
