@@ -84,7 +84,11 @@ def build_selector_source(items: list[dict[str, Any]]) -> str:
     item_literals = []
     for item in items:
         item_literals.append(
-            "{title:%s,match:%s,code:%s}"
+            """    {
+      title: %s,
+      match: %s,
+      code: %s,
+    }"""
             % (
                 js_string(item["title"]),
                 item["match_js"],
@@ -92,7 +96,269 @@ def build_selector_source(items: list[dict[str, Any]]) -> str:
             )
         )
 
-    return f"""!(function(){{'use strict';var items=[{','.join(item_literals)}];var ROOT_ID='bookmarklet-selector';var old=document.getElementById(ROOT_ID);if(old)old.remove();var prevOverflow=document.documentElement.style.overflow;document.documentElement.style.overflow='hidden';var currentUrl=null;try{{currentUrl=new URL(location.href);}}catch(e){{}}function isMatch(item,urlObj){{if(!urlObj)return false;if(typeof item.match!=='function')return true;try{{return item.match(urlObj)===true;}}catch(e){{return false;}}}}var overlay=document.createElement('div');overlay.id=ROOT_ID;overlay.style.position='fixed';overlay.style.inset='0';overlay.style.zIndex='2147483647';overlay.style.background='rgba(0,0,0,0.25)';overlay.style.display='flex';overlay.style.alignItems='center';overlay.style.justifyContent='center';overlay.style.padding='16px';overlay.style.boxSizing='border-box';var panel=document.createElement('div');panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');panel.style.width='min(560px,100%)';panel.style.maxHeight='min(520px,100%)';panel.style.background='#fff';panel.style.color='#111';panel.style.border='1px solid #ddd';panel.style.borderRadius='10px';panel.style.boxShadow='0 10px 30px rgba(0,0,0,0.15)';panel.style.display='flex';panel.style.flexDirection='column';panel.style.overflow='hidden';panel.style.font='14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif';overlay.appendChild(panel);var header=document.createElement('div');header.style.display='flex';header.style.alignItems='center';header.style.justifyContent='space-between';header.style.padding='10px 12px';header.style.borderBottom='1px solid #eee';var hTitle=document.createElement('div');hTitle.textContent='Bookmarklets';hTitle.style.fontWeight='600';var closeBtn=document.createElement('button');closeBtn.type='button';closeBtn.textContent='×';closeBtn.setAttribute('aria-label','Close');closeBtn.style.width='32px';closeBtn.style.height='32px';closeBtn.style.border='1px solid #ddd';closeBtn.style.borderRadius='8px';closeBtn.style.background='#fff';closeBtn.style.cursor='pointer';closeBtn.style.fontSize='18px';closeBtn.style.lineHeight='1';closeBtn.style.color='#333';header.appendChild(hTitle);header.appendChild(closeBtn);panel.appendChild(header);var body=document.createElement('div');body.style.padding='12px';body.style.display='flex';body.style.flexDirection='column';body.style.gap='10px';panel.appendChild(body);var input=document.createElement('input');input.type='text';input.placeholder='Search...';input.style.width='100%';input.style.boxSizing='border-box';input.style.padding='10px';input.style.borderRadius='8px';input.style.border='1px solid #ddd';input.style.background='#fff';input.style.color='#111';input.style.outline='none';body.appendChild(input);var list=document.createElement('div');list.style.border='1px solid #ddd';list.style.borderRadius='8px';list.style.overflow='auto';list.style.maxHeight='320px';body.appendChild(list);var footer=document.createElement('div');footer.style.display='flex';footer.style.gap='8px';footer.style.justifyContent='flex-end';footer.style.padding='10px 12px';footer.style.borderTop='1px solid #eee';var runBtn=document.createElement('button');runBtn.type='button';runBtn.textContent='Run';runBtn.style.padding='8px 12px';runBtn.style.border='1px solid #111';runBtn.style.borderRadius='8px';runBtn.style.background='#111';runBtn.style.color='#fff';runBtn.style.cursor='pointer';var cancelBtn=document.createElement('button');cancelBtn.type='button';cancelBtn.textContent='Cancel';cancelBtn.style.padding='8px 12px';cancelBtn.style.border='1px solid #ddd';cancelBtn.style.borderRadius='8px';cancelBtn.style.background='#fff';cancelBtn.style.color='#111';cancelBtn.style.cursor='pointer';footer.appendChild(cancelBtn);footer.appendChild(runBtn);panel.appendChild(footer);var filtered=[];var optionEls=[];var active=0;function rebuildFiltered(query){{var q=(query||'').trim().toLowerCase();filtered=[];items.forEach(function(item,idx){{if(!isMatch(item,currentUrl))return;if(q&&item.title.toLowerCase().indexOf(q)===-1)return;filtered.push({{index:idx,title:item.title}});}});active=0;}}function setActive(pos){{if(!filtered.length)return;active=Math.max(0,Math.min(pos,filtered.length-1));optionEls.forEach(function(el,i){{el.style.background=i===active?'#f3f4f6':'#fff';el.style.outline=i===active?'2px solid #111':'none';el.style.outlineOffset='-2px';}});var el=optionEls[active];if(el)el.scrollIntoView({{block:'nearest'}});}}function render(){{list.innerHTML='';optionEls=[];if(!filtered.length){{var empty=document.createElement('div');empty.textContent='No matching items';empty.style.padding='10px';empty.style.color='#666';list.appendChild(empty);return;}}filtered.forEach(function(item,pos){{var row=document.createElement('div');row.textContent=item.title;row.style.padding='10px';row.style.cursor='pointer';row.style.userSelect='none';row.style.borderBottom='1px solid #eee';row.onmouseenter=function(){{setActive(pos);}};row.onclick=function(){{setActive(pos);runSelected();}};list.appendChild(row);optionEls.push(row);}});var last=list.lastElementChild;if(last&&last.style)last.style.borderBottom='none';setActive(active);}}function cleanup(){{document.documentElement.style.overflow=prevOverflow;document.removeEventListener('keydown',onKey,true);overlay.remove();}}function runSelected(){{if(!filtered.length)return;var item=items[filtered[active].index];cleanup();try{{item.code.call(window);}}catch(e){{alert('Bookmarklet error: '+e.message);}}}}function onKey(e){{if(e.key==='Escape'){{e.preventDefault();cleanup();}}else if(e.key==='Enter'){{e.preventDefault();runSelected();}}else if(e.key==='ArrowDown'){{e.preventDefault();setActive(active+1);}}else if(e.key==='ArrowUp'){{e.preventDefault();setActive(active-1);}}}}input.oninput=function(){{rebuildFiltered(input.value);render();}};runBtn.onclick=runSelected;cancelBtn.onclick=cleanup;closeBtn.onclick=cleanup;document.addEventListener('keydown',onKey,true);rebuildFiltered('');render();document.documentElement.appendChild(overlay);input.focus();}})();"""
+    items_source = ",\n".join(item_literals)
+
+    return f"""!(function () {{
+  'use strict';
+
+  var items = [
+{items_source}
+  ];
+
+  var ROOT_ID = 'bookmarklet-selector';
+  var old = document.getElementById(ROOT_ID);
+  if (old) old.remove();
+
+  var prevOverflow = document.documentElement.style.overflow;
+  document.documentElement.style.overflow = 'hidden';
+
+  var currentUrl = null;
+  try {{
+    currentUrl = new URL(location.href);
+  }} catch (e) {{}}
+
+  function isMatch(item, urlObj) {{
+    if (!urlObj) return false;
+    if (typeof item.match !== 'function') return true;
+    try {{
+      return item.match(urlObj) === true;
+    }} catch (e) {{
+      return false;
+    }}
+  }}
+
+  // --- UI: minimal ---
+  var overlay = document.createElement('div');
+  overlay.id = ROOT_ID;
+  overlay.style.position = 'fixed';
+  overlay.style.inset = '0';
+  overlay.style.zIndex = '2147483647';
+  overlay.style.background = 'rgba(0,0,0,0.25)';
+  overlay.style.display = 'flex';
+  overlay.style.alignItems = 'center';
+  overlay.style.justifyContent = 'center';
+  overlay.style.padding = '16px';
+  overlay.style.boxSizing = 'border-box';
+
+  var panel = document.createElement('div');
+  panel.setAttribute('role', 'dialog');
+  panel.setAttribute('aria-modal', 'true');
+  panel.style.width = 'min(560px, 100%)';
+  panel.style.maxHeight = 'min(520px, 100%)';
+  panel.style.background = '#fff';
+  panel.style.color = '#111';
+  panel.style.border = '1px solid #ddd';
+  panel.style.borderRadius = '10px';
+  panel.style.boxShadow = '0 10px 30px rgba(0,0,0,0.15)';
+  panel.style.display = 'flex';
+  panel.style.flexDirection = 'column';
+  panel.style.overflow = 'hidden';
+  panel.style.font =
+    '14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif';
+  overlay.appendChild(panel);
+
+  var header = document.createElement('div');
+  header.style.display = 'flex';
+  header.style.alignItems = 'center';
+  header.style.justifyContent = 'space-between';
+  header.style.padding = '10px 12px';
+  header.style.borderBottom = '1px solid #eee';
+
+  var hTitle = document.createElement('div');
+  hTitle.textContent = 'Bookmarklets';
+  hTitle.style.fontWeight = '600';
+
+  var closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.textContent = '×';
+  closeBtn.setAttribute('aria-label', 'Close');
+  closeBtn.style.width = '32px';
+  closeBtn.style.height = '32px';
+  closeBtn.style.border = '1px solid #ddd';
+  closeBtn.style.borderRadius = '8px';
+  closeBtn.style.background = '#fff';
+  closeBtn.style.cursor = 'pointer';
+  closeBtn.style.fontSize = '18px';
+  closeBtn.style.lineHeight = '1';
+  closeBtn.style.color = '#333';
+
+  header.appendChild(hTitle);
+  header.appendChild(closeBtn);
+  panel.appendChild(header);
+
+  var body = document.createElement('div');
+  body.style.padding = '12px';
+  body.style.display = 'flex';
+  body.style.flexDirection = 'column';
+  body.style.gap = '10px';
+  panel.appendChild(body);
+
+  var input = document.createElement('input');
+  input.type = 'text';
+  input.placeholder = 'Search...';
+  input.style.width = '100%';
+  input.style.boxSizing = 'border-box';
+  input.style.padding = '10px';
+  input.style.borderRadius = '8px';
+  input.style.border = '1px solid #ddd';
+  input.style.background = '#fff';
+  input.style.color = '#111';
+  input.style.outline = 'none';
+  body.appendChild(input);
+
+  var list = document.createElement('div');
+  list.style.border = '1px solid #ddd';
+  list.style.borderRadius = '8px';
+  list.style.overflow = 'auto';
+  list.style.maxHeight = '320px';
+  body.appendChild(list);
+
+  var footer = document.createElement('div');
+  footer.style.display = 'flex';
+  footer.style.gap = '8px';
+  footer.style.padding = '10px 12px';
+  footer.style.borderTop = '1px solid #eee';
+
+  function btn(label, primary) {{
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = label;
+    b.style.flex = '1';
+    b.style.padding = '10px';
+    b.style.borderRadius = '8px';
+    b.style.border = '1px solid #ddd';
+    b.style.background = primary ? '#111' : '#fff';
+    b.style.color = primary ? '#fff' : '#111';
+    b.style.cursor = 'pointer';
+    return b;
+  }}
+
+  var runBtn = btn('Run', true);
+  var cancelBtn = btn('Cancel', false);
+  footer.appendChild(runBtn);
+  footer.appendChild(cancelBtn);
+  panel.appendChild(footer);
+
+  // --- list logic ---
+  var filtered = [];
+  var active = 0;
+  var optionEls = [];
+
+  function rebuildFiltered(query) {{
+    var q = (query || '').toLowerCase();
+    filtered = items
+      .map(function (it, i) {{
+        return {{ index: i, title: it.title }};
+      }})
+      .filter(function (x) {{
+        var item = items[x.index];
+        return isMatch(item, currentUrl) && x.title.toLowerCase().includes(q);
+      }});
+    active = 0;
+  }}
+
+  function setActive(pos) {{
+    if (!filtered.length) return;
+    active = Math.max(0, Math.min(pos, filtered.length - 1));
+    optionEls.forEach(function (el, i) {{
+      el.style.background = i === active ? '#f3f4f6' : '#fff';
+      el.style.outline = i === active ? '2px solid #111' : 'none';
+      el.style.outlineOffset = '-2px';
+    }});
+    var el = optionEls[active];
+    if (el) el.scrollIntoView({{ block: 'nearest' }});
+  }}
+
+  function render() {{
+    list.innerHTML = '';
+    optionEls = [];
+
+    if (!filtered.length) {{
+      var empty = document.createElement('div');
+      empty.textContent = 'No matching items';
+      empty.style.padding = '10px';
+      empty.style.color = '#666';
+      list.appendChild(empty);
+      return;
+    }}
+
+    filtered.forEach(function (item, pos) {{
+      var row = document.createElement('div');
+      row.textContent = item.title;
+      row.style.padding = '10px';
+      row.style.cursor = 'pointer';
+      row.style.userSelect = 'none';
+      row.style.borderBottom = '1px solid #eee';
+      row.onmouseenter = function () {{
+        setActive(pos);
+      }};
+      row.onclick = function () {{
+        setActive(pos);
+        runSelected();
+      }};
+      list.appendChild(row);
+      optionEls.push(row);
+    }});
+
+    // last divider cleanup
+    var last = list.lastElementChild;
+    if (last && last.style) last.style.borderBottom = 'none';
+
+    setActive(active);
+  }}
+
+  function cleanup() {{
+    document.documentElement.style.overflow = prevOverflow;
+    document.removeEventListener('keydown', onKey, true);
+    overlay.remove();
+  }}
+
+  function runSelected() {{
+    if (!filtered.length) return;
+    var item = items[filtered[active].index];
+    cleanup();
+    try {{
+      item.code.call(window);
+    }} catch (e) {{
+      alert('Bookmarklet error: ' + e.message);
+    }}
+  }}
+
+  function onKey(e) {{
+    if (e.key === 'Escape') {{
+      e.preventDefault();
+      cleanup();
+    }} else if (e.key === 'Enter') {{
+      e.preventDefault();
+      runSelected();
+    }} else if (e.key === 'ArrowDown') {{
+      e.preventDefault();
+      setActive(active + 1);
+    }} else if (e.key === 'ArrowUp') {{
+      e.preventDefault();
+      setActive(active - 1);
+    }}
+  }}
+
+  input.oninput = function () {{
+    rebuildFiltered(input.value);
+    render();
+  }};
+
+  runBtn.onclick = runSelected;
+  cancelBtn.onclick = cleanup;
+  closeBtn.onclick = cleanup;
+  cancelBtn.onclick = cleanup;
+
+  document.addEventListener('keydown', onKey, true);
+
+  rebuildFiltered('');
+  render();
+
+  document.documentElement.appendChild(overlay);
+  input.focus();
+}})();"""
+
 
 
 async def selector_payload() -> dict[str, str]:
