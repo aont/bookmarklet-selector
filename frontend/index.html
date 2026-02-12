@@ -154,6 +154,30 @@
         return `${state.apiOrigin}${path}`;
       }
 
+      async function fetchJson(path, options) {
+        const url = apiUrl(path);
+        let res;
+        try {
+          res = await fetch(url, options);
+        } catch (e) {
+          throw new Error(
+            `Network request failed for ${url}. If the backend is running, check CORS (--frontend-origin) and ensure your UI origin (${window.location.origin}) is allowed.`
+          );
+        }
+
+        let data = {};
+        try {
+          data = await res.json();
+        } catch (e) {
+          throw new Error(`API returned non-JSON response from ${url}.`);
+        }
+
+        if (!res.ok) {
+          throw new Error(data.error || `API request failed (${res.status})`);
+        }
+        return data;
+      }
+
       const itemList = document.getElementById('itemList');
       const titleInput = document.getElementById('title');
       const matchInput = document.getElementById('matchJs');
@@ -204,8 +228,7 @@
       }
 
       async function loadItems() {
-        const res = await fetch(apiUrl('/api/bookmarklets'));
-        const data = await res.json();
+        const data = await fetchJson('/api/bookmarklets');
         state.items = data.items;
         renderItems();
         if (!state.activeId) resetForm();
@@ -215,9 +238,7 @@
         if (!window.Terser || typeof window.Terser.minify !== 'function') {
           throw new Error('Terser failed to load from CDN');
         }
-        const res = await fetch(apiUrl('/api/selector'));
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'failed to generate bookmarklet source');
+        const data = await fetchJson('/api/selector');
         const minified = await window.Terser.minify(data.javascript_source, {
           compress: { booleans: true, dead_code: true, passes: 2, unsafe: false },
           mangle: false,
@@ -245,16 +266,15 @@
         };
 
         const isUpdate = Boolean(state.activeId);
-        const url = isUpdate ? apiUrl(`/api/bookmarklets/${state.activeId}`) : apiUrl('/api/bookmarklets');
+        const path = isUpdate ? `/api/bookmarklets/${state.activeId}` : '/api/bookmarklets';
         const method = isUpdate ? 'PUT' : 'POST';
 
-        const res = await fetch(url, {
+        const data = await fetchJson(path, {
           method,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'save failed');
+
         setStatus(isUpdate ? 'Updated.' : `Created #${data.id}`);
         await loadItems();
         await refreshBookmarkletUrl();
@@ -265,9 +285,7 @@
         const ok = confirm('Delete this entry?');
         if (!ok) return;
 
-        const res = await fetch(apiUrl(`/api/bookmarklets/${state.activeId}`), { method: 'DELETE' });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'delete failed');
+        await fetchJson(`/api/bookmarklets/${state.activeId}`, { method: 'DELETE' });
 
         setStatus('Deleted entry.');
         await loadItems();
