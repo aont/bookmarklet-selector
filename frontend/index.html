@@ -255,7 +255,7 @@
       }
 
       async function loadItems() {
-        const data = await fetchJson('/api/bookmarklets');
+        const data = await fetchJson('/bookmarklets');
         state.items = data.items;
         renderItems();
         if (!state.activeId) resetForm();
@@ -265,7 +265,7 @@
         if (!window.Terser || typeof window.Terser.minify !== 'function') {
           throw new Error('Terser failed to load from CDN');
         }
-        const data = await fetchJson('/api/selector');
+        const data = await fetchJson('/selector');
         const minified = await window.Terser.minify(data.javascript_source, {
           compress: { booleans: true, dead_code: true, passes: 2, unsafe: false },
           mangle: false,
@@ -293,7 +293,7 @@
         };
 
         const isUpdate = Boolean(state.activeId);
-        const path = isUpdate ? `/api/bookmarklets/${state.activeId}` : '/api/bookmarklets';
+        const path = isUpdate ? `/bookmarklets/${state.activeId}` : '/bookmarklets';
         const method = isUpdate ? 'PUT' : 'POST';
 
         const data = await fetchJson(path, {
@@ -312,7 +312,7 @@
         const ok = confirm('Delete this entry?');
         if (!ok) return;
 
-        await fetchJson(`/api/bookmarklets/${state.activeId}`, { method: 'DELETE' });
+        await fetchJson(`/bookmarklets/${state.activeId}`, { method: 'DELETE' });
 
         setStatus('Deleted entry.');
         await loadItems();

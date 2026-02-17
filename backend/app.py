@@ -472,12 +472,12 @@ def create_api_app(frontend_origin: str) -> web.Application:
     app["allowed_origins"] = {
         origin.strip() for origin in frontend_origin.split(",") if origin.strip()
     } or {"http://localhost:8081"}
-    app.router.add_route("OPTIONS", "/api/{tail:.*}", api_options)
-    app.router.add_get("/api/bookmarklets", api_get_bookmarklets)
-    app.router.add_post("/api/bookmarklets", api_create_bookmarklet)
-    app.router.add_put("/api/bookmarklets/{item_id}", api_update_bookmarklet)
-    app.router.add_delete("/api/bookmarklets/{item_id}", api_delete_bookmarklet)
-    app.router.add_get("/api/selector", api_selector)
+    app.router.add_route("OPTIONS", "/{tail:.*}", api_options)
+    app.router.add_get("/bookmarklets", api_get_bookmarklets)
+    app.router.add_post("/bookmarklets", api_create_bookmarklet)
+    app.router.add_put("/bookmarklets/{item_id}", api_update_bookmarklet)
+    app.router.add_delete("/bookmarklets/{item_id}", api_delete_bookmarklet)
+    app.router.add_get("/selector", api_selector)
     return app
 
 

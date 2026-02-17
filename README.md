@@ -18,7 +18,7 @@ python backend/app.py --api-port 8080 --frontend-port 8081 --frontend-origin htt
 
 ## URLs
 - Frontend UI: `http://localhost:8081`
-- API/bookmarklet server: `http://localhost:8080`
+- API/bookmarklet server: `http://localhost:8080` (endpoints: `/bookmarklets`, `/selector`)
 
 The two services are intentionally split so the frontend and bookmarklet API run on different origins.
 
